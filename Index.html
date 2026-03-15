@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Kalkulator GFR Cockcroft-Gault</title>
+  <style>
+    :root {
+      --bg1: #0d5c3b;
+      --bg2: #1e9f67;
+      --bg3: #a8f0c8;
+      --panel: rgba(255,255,255,0.92);
+      --panel-soft: rgba(255,255,255,0.16);
+      --text: #0f4a33;
+      --text-soft: #3f7a60;
+      --line: rgba(255,255,255,0.28);
+      --accent: #19b56f;
+      --accent-dark: #0f7f4c;
+      --shadow: 0 18px 50px rgba(8, 67, 42, 0.26);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.2), transparent 30%),
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 48%, var(--bg3) 100%);
+      color: white;
+    }
+
+    body {
+      padding: max(16px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom)) 16px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .hero {
+      background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: 32px;
+      overflow: hidden;
+      backdrop-filter: blur(18px);
+    }
+
+    .hero-top {
+      padding: 22px 22px 18px;
+      background: linear-gradient(180deg, rgba(10, 75, 47, 0.92), rgba(26, 146, 92, 0.78));
+      border-bottom: 1px solid rgba(255,255,255,0.16);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.16);
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .brand-badge .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #d7ffe8, #63f3a7);
+      box-shadow: 0 0 14px rgba(170, 255, 205, 0.8);
+    }
+
+    .hero-top h1 {
+      margin: 14px 0 6px;
+      font-size: 1.9rem;
+      line-height: 1.05;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .hero-top p {
+      margin: 0;
+      color: rgba(255,255,255,0.9);
+      font-size: 0.98rem;
+    }
+
+    .result-card {
+      margin: 18px 22px 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.97), rgba(235,255,244,0.95));
+      border-radius: 28px;
+      padding: 18px 20px 20px;
+      color: var(--text);
+      box-shadow: 0 12px 28px rgba(13, 85, 53, 0.18);
+    }
+
+    .result-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .result-top .label, .result-top .category {
+      font-size: 0.9rem;
+      color: var(--text-soft);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .result-value {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .result-number {
+      font-size: clamp(3rem, 12vw, 4.8rem);
+      line-height: 0.95;
+      font-weight: 800;
+      color: #16a765;
+      letter-spacing: -0.05em;
+    }
+
+    .result-unit {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #355c49;
+      color: white;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .hero-body {
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .controls-card, .dial-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+      border: 1px solid rgba(255,255,255,0.24);
+      border-radius: 28px;
+      padding: 20px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    .section-title {
+      align-self: stretch;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.82);
+      margin-bottom: 2px;
+    }
+
+    .sex-toggle, .unit-toggle {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .toggle-btn {
+      border: 1px solid rgba(255,255,255,0.24);
+      background: rgba(255,255,255,0.12);
+      color: white;
+      border-radius: 999px;
+      padding: 12px 14px;
+      font-weight: 700;
+      font-size: 0.96rem;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .toggle-btn.active {
+      background: white;
+      color: var(--accent-dark);
+      border-color: white;
+    }
+
+    .crea-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .crea-input {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.26);
+      background: rgba(255,255,255,0.92);
+      color: var(--text);
+      border-radius: 18px;
+      padding: 14px 16px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      outline: none;
+    }
+
+    .dual-value {
+      width: 100%;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 12px 14px;
+      color: rgba(255,255,255,0.92);
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    .dual-value strong {
+      color: white;
+    }
+
+    .dial-title {
+      text-align: center;
+      font-weight: 700;
+      color: white;
+      font-size: 1.08rem;
+    }
+
+    .dial-subtitle {
+      color: rgba(255,255,255,0.78);
+      font-size: 0.92rem;
+      margin-top: -4px;
+    }
+
+    .dial {
+      width: min(76vw, 260px);
+      height: min(76vw, 260px);
+      max-width: 260px;
+      max-height: 260px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.88);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.12), rgba(255,255,255,0.03) 62%, rgba(255,255,255,0.01) 100%);
+      --indicator-angle: 0deg;
+    }
+
+    .dial-indicator {
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: rotate(var(--indicator-angle));
+      transition: transform 0.22s ease;
+    }
+
+    .dial-indicator::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: -8px;
+      transform: translateX(-50%);
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.96);
+      box-shadow: 0 0 0 6px rgba(255,255,255,0.14), 0 4px 12px rgba(8, 67, 42, 0.26);
+    }
+
+    .dial-controls {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 56px 1fr 56px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-btn {
+      width: 56px;
+      height: 56px;
+      border: 0;
+      border-radius: 50%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(228,255,239,0.95));
+      color: var(--accent-dark);
+      font-size: 2rem;
+      line-height: 1;
+      font-weight: 500;
+      box-shadow: 0 10px 22px rgba(8, 67, 42, 0.2);
+      cursor: pointer;
+    }
+
+    .dial-center {
+      text-align: center;
+      min-width: 0;
+    }
+
+    .dial-value {
+      font-size: clamp(2.45rem, 10vw, 3.8rem);
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      color: white;
+    }
+
+    .dial-unit {
+      margin-top: 8px;
+      font-size: 1rem;
+      color: rgba(255,255,255,0.88);
+      font-weight: 600;
+    }
+
+    .slider-wrap {
+      width: 100%;
+      margin-top: 6px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      appearance: none;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.26);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 0;
+      background: white;
+      box-shadow: 0 4px 12px rgba(8, 67, 42, 0.3);
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 0;
+      background: white;
+      box-shadow: 0 4px 12px rgba(8, 67, 42, 0.3);
+      cursor: pointer;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+      width: 100%;
+    }
+
+    .chip {
+      border: 1px solid rgba(255,255,255,0.24);
+      background: rgba(255,255,255,0.12);
+      color: white;
+      border-radius: 999px;
+      padding: 9px 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .chip.active {
+      background: white;
+      color: var(--accent-dark);
+      border-color: white;
+    }
+
+    .details {
+      margin-top: 6px;
+      background: rgba(255,255,255,0.9);
+      color: var(--text);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 12px 28px rgba(8, 67, 42, 0.14);
+    }
+
+    .details-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .detail-box {
+      border-radius: 16px;
+      background: #effff5;
+      padding: 14px;
+    }
+
+    .detail-box .k {
+      display: block;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #4e7b64;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .detail-box .v {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #0f4a33;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 16px;
+      color: rgba(255,255,255,0.88);
+      font-size: 0.86rem;
+      padding-bottom: 8px;
+    }
+
+    @media (min-width: 860px) {
+      .app { max-width: 960px; }
+      .hero-body { grid-template-columns: 1fr 1fr; }
+      .details-grid { grid-template-columns: repeat(4, 1fr); }
+      .dial { width: 240px; height: 240px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <div class="hero-top">
+        <div class="brand">
+          <div class="brand-badge">
+            <span class="dot"></span>
+            GFR / Cockcroft-Gault
+          </div>
+          <div style="font-weight:700; opacity:0.9;">MICHAA</div>
+        </div>
+        <h1>Kalkulator GFR</h1>
+        <p>Wzór Cockcrofta-Gaulta. Kreatynina domyślnie w mg/dl z automatycznym przeliczeniem na µmol/l i odwrotnie.</p>
+      </div>
+
+      <div class="result-card">
+        <div class="result-top">
+          <div class="label">Wynik</div>
+          <div class="category" id="gfrCategory">Cockcroft-Gault</div>
+        </div>
+        <div class="result-value">
+          <div class="result-number" id="gfrOutput">80.86</div>
+          <div class="result-unit">ml/min</div>
+        </div>
+      </div>
+
+      <div class="hero-body">
+        <div class="controls-card">
+          <div class="section-title">Płeć</div>
+          <div class="sex-toggle">
+            <button class="toggle-btn active" id="maleBtn" type="button">Mężczyzna</button>
+            <button class="toggle-btn" id="femaleBtn" type="button">Kobieta</button>
+          </div>
+
+          <div class="section-title" style="margin-top:6px;">Kreatynina</div>
+          <div class="unit-toggle">
+            <button class="toggle-btn active" id="mgBtn" type="button">mg/dl</button>
+            <button class="toggle-btn" id="umolBtn" type="button">µmol/l</button>
+          </div>
+
+          <div class="crea-grid">
+            <input class="crea-input" id="creatinineInput" type="number" min="0" step="0.01" value="1.2" inputmode="decimal" />
+            <div class="toggle-btn active" id="currentUnitBadge" style="cursor:default; min-width:96px; text-align:center;">mg/dl</div>
+          </div>
+
+          <div class="dual-value" id="creaMirror">
+            <strong>Odpowiednik:</strong> 106.1 µmol/l
+          </div>
+        </div>
+
+        <div>
+          <div class="dial-card">
+            <div class="dial-title">Masa ciała</div>
+            <div class="dial-subtitle">kg</div>
+            <div class="dial" id="weightDial">
+              <div class="dial-indicator"></div>
+              <div class="dial-controls">
+                <button class="step-btn" id="weightMinus" type="button">−</button>
+                <div class="dial-center">
+                  <div class="dial-value" id="weightValue">70</div>
+                  <div class="dial-unit">kg</div>
+                </div>
+                <button class="step-btn" id="weightPlus" type="button">+</button>
+              </div>
+            </div>
+            <div class="slider-wrap">
+              <input id="weightRange" type="range" min="30" max="180" step="1" value="70" />
+            </div>
+            <div class="quick-grid" id="quickWeight"></div>
+          </div>
+
+          <div class="dial-card" style="margin-top:18px;">
+            <div class="dial-title">Wiek</div>
+            <div class="dial-subtitle">lata</div>
+            <div class="dial" id="ageDial">
+              <div class="dial-indicator"></div>
+              <div class="dial-controls">
+                <button class="step-btn" id="ageMinus" type="button">−</button>
+                <div class="dial-center">
+                  <div class="dial-value" id="ageValue">40</div>
+                  <div class="dial-unit">lat</div>
+                </div>
+                <button class="step-btn" id="agePlus" type="button">+</button>
+              </div>
+            </div>
+            <div class="slider-wrap">
+              <input id="ageRange" type="range" min="17" max="105" step="1" value="40" />
+            </div>
+            <div class="quick-grid" id="quickAge"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 0 22px 22px;">
+        <section class="details">
+          <div class="details-grid">
+            <div class="detail-box">
+              <span class="k">Wzór</span>
+              <span class="v">[(140 − wiek) × kg] / [72 × kreatynina mg/dl]</span>
+            </div>
+            <div class="detail-box">
+              <span class="k">Korekta</span>
+              <span class="v" id="sexInfo">Mężczyzna × 1.00</span>
+            </div>
+            <div class="detail-box">
+              <span class="k">Kreatynina</span>
+              <span class="v" id="creaInfo">1.20 mg/dl</span>
+            </div>
+            <div class="detail-box">
+              <span class="k">Parametry</span>
+              <span class="v" id="paramInfo">70 kg / 40 lat</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <div class="footer">Cockcroft-Gault / © MICHAA 2026</div>
+  </main>
+
+  <script>
+    const weightRange = document.getElementById('weightRange');
+    const ageRange = document.getElementById('ageRange');
+    const creatinineInput = document.getElementById('creatinineInput');
+
+    const weightValue = document.getElementById('weightValue');
+    const ageValue = document.getElementById('ageValue');
+    const gfrOutput = document.getElementById('gfrOutput');
+    const gfrCategory = document.getElementById('gfrCategory');
+    const sexInfo = document.getElementById('sexInfo');
+    const creaInfo = document.getElementById('creaInfo');
+    const paramInfo = document.getElementById('paramInfo');
+    const creaMirror = document.getElementById('creaMirror');
+    const currentUnitBadge = document.getElementById('currentUnitBadge');
+
+    const weightDial = document.getElementById('weightDial');
+    const ageDial = document.getElementById('ageDial');
+
+    const maleBtn = document.getElementById('maleBtn');
+    const femaleBtn = document.getElementById('femaleBtn');
+    const mgBtn = document.getElementById('mgBtn');
+    const umolBtn = document.getElementById('umolBtn');
+
+    const quickWeightWrap = document.getElementById('quickWeight');
+    const quickAgeWrap = document.getElementById('quickAge');
+
+    const weightSteps = [40, 50, 60, 70, 80, 90, 100, 120, 140];
+    const ageSteps = [20, 30, 40, 50, 60, 70, 80, 90];
+
+    let sex = 'male';
+    let creatinineUnit = 'mgdl';
+
+    weightSteps.forEach((step) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.textContent = `${step} kg`;
+      btn.addEventListener('click', () => {
+        weightRange.value = step;
+        update();
+      });
+      quickWeightWrap.appendChild(btn);
+    });
+
+    ageSteps.forEach((step) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.textContent = `${step}`;
+      btn.addEventListener('click', () => {
+        ageRange.value = step;
+        update();
+      });
+      quickAgeWrap.appendChild(btn);
+    });
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function mgdlToUmol(value) {
+      return value * 88.4;
+    }
+
+    function umolToMgdl(value) {
+      return value / 88.4;
+    }
+
+    function getCreatinineMgdl() {
+      const raw = Number(creatinineInput.value);
+      const safe = raw > 0 ? raw : 0;
+      return creatinineUnit === 'mgdl' ? safe : umolToMgdl(safe);
+    }
+
+    function setWeight(next) {
+      weightRange.value = clamp(next, 30, 180);
+      update();
+    }
+
+    function setAge(next) {
+      ageRange.value = clamp(next, 17, 105);
+      update();
+    }
+
+    document.getElementById('weightMinus').addEventListener('click', () => setWeight(Number(weightRange.value) - 1));
+    document.getElementById('weightPlus').addEventListener('click', () => setWeight(Number(weightRange.value) + 1));
+    document.getElementById('ageMinus').addEventListener('click', () => setAge(Number(ageRange.value) - 1));
+    document.getElementById('agePlus').addEventListener('click', () => setAge(Number(ageRange.value) + 1));
+
+    weightRange.addEventListener('input', update);
+    ageRange.addEventListener('input', update);
+    creatinineInput.addEventListener('input', update);
+
+    maleBtn.addEventListener('click', () => {
+      sex = 'male';
+      maleBtn.classList.add('active');
+      femaleBtn.classList.remove('active');
+      update();
+    });
+
+    femaleBtn.addEventListener('click', () => {
+      sex = 'female';
+      femaleBtn.classList.add('active');
+      maleBtn.classList.remove('active');
+      update();
+    });
+
+    mgBtn.addEventListener('click', () => {
+      if (creatinineUnit === 'mgdl') return;
+      const currentUmol = Number(creatinineInput.value) || 0;
+      creatinineInput.value = umolToMgdl(currentUmol).toFixed(2);
+      creatinineUnit = 'mgdl';
+      mgBtn.classList.add('active');
+      umolBtn.classList.remove('active');
+      currentUnitBadge.textContent = 'mg/dl';
+      creatinineInput.step = '0.01';
+      update();
+    });
+
+    umolBtn.addEventListener('click', () => {
+      if (creatinineUnit === 'umol') return;
+      const currentMgdl = Number(creatinineInput.value) || 0;
+      creatinineInput.value = mgdlToUmol(currentMgdl).toFixed(1);
+      creatinineUnit = 'umol';
+      umolBtn.classList.add('active');
+      mgBtn.classList.remove('active');
+      currentUnitBadge.textContent = 'µmol/l';
+      creatinineInput.step = '0.1';
+      update();
+    });
+
+    function update() {
+      const weight = Number(weightRange.value);
+      const age = Number(ageRange.value);
+      const creatMgdl = getCreatinineMgdl();
+      const creatUmol = mgdlToUmol(creatMgdl);
+
+      const weightMin = Number(weightRange.min);
+      const weightMax = Number(weightRange.max);
+      const ageMin = Number(ageRange.min);
+      const ageMax = Number(ageRange.max);
+
+      const weightCenter = 70;
+      const ageCenter = 40;
+
+      let weightAngle = 0;
+      if (weight >= weightCenter) {
+        weightAngle = ((weight - weightCenter) / (weightMax - weightCenter)) * 135;
+      } else {
+        weightAngle = -((weightCenter - weight) / (weightCenter - weightMin)) * 135;
+      }
+
+      let ageAngle = 0;
+      if (age >= ageCenter) {
+        ageAngle = ((age - ageCenter) / (ageMax - ageCenter)) * 135;
+      } else {
+        ageAngle = -((ageCenter - age) / (ageCenter - ageMin)) * 135;
+      }
+
+      weightDial.style.setProperty('--indicator-angle', `${weightAngle}deg`);
+      ageDial.style.setProperty('--indicator-angle', `${ageAngle}deg`);
+
+      let gfr = 0;
+      if (creatMgdl > 0) {
+        gfr = ((140 - age) * weight) / (72 * creatMgdl);
+        if (sex === 'female') gfr *= 0.85;
+      }
+
+      weightValue.textContent = weight.toFixed(0);
+      ageValue.textContent = age.toFixed(0);
+      gfrOutput.textContent = gfr.toFixed(2);
+      gfrCategory.textContent = sex === 'female' ? 'Cockcroft-Gault × 0.85' : 'Cockcroft-Gault';
+      sexInfo.textContent = sex === 'female' ? 'Kobieta × 0.85' : 'Mężczyzna × 1.00';
+      creaInfo.textContent = `${creatMgdl.toFixed(2)} mg/dl`;
+      paramInfo.textContent = `${weight.toFixed(0)} kg / ${age.toFixed(0)} lat`;
+
+      if (creatinineUnit === 'mgdl') {
+        creaMirror.innerHTML = `<strong>Odpowiednik:</strong> ${creatUmol.toFixed(1)} µmol/l`;
+      } else {
+        creaMirror.innerHTML = `<strong>Odpowiednik:</strong> ${creatMgdl.toFixed(2)} mg/dl`;
+      }
+
+      [...quickWeightWrap.children].forEach((el) => {
+        el.classList.toggle('active', Number(el.textContent.replace(' kg', '')) === weight);
+      });
+
+      [...quickAgeWrap.children].forEach((el) => {
+        el.classList.toggle('active', Number(el.textContent) === age);
+      });
+    }
+
+    update();
+  </script>
+</body>
+</html>
